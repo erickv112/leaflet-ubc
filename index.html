@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Leaflet-ing UBC</title>
+    <meta charset="utf-8" />
+
+    <!-- Leaflet styles and code. Place in the <head></head> element. -->
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet@1.4.0/dist/leaflet.css"
+    />
+    <script src="https://unpkg.com/leaflet@1.4.0/dist/leaflet.js"></script>
+
+    <!-- jQuery is a library that simplifies many things in JavaScript.
+	     We'll use it to retrieve data from the web. -->
+    <script src="https://code.jquery.com/jquery-3.3.1.min.js"></script>
+
+    <script src="./p5.min.js"></script>
+    <!-- this should be unnecessary in this code, as we aren't using p5.js...
+       but since I'm showing you the code running in the p5 editor,
+       the editor expects p5.js to be here...
+       otherwise, it gives you a "TypeError: window.p5 is undefined".
+       We won't use any of p5.js's commands, though! -->
+  </head>
+  <body>
+    <div id="mapid" style="width: 1000px; height: 650px;"></div>
+    <!-- Our web map will get placed into this div element -->
+
+    <div id="controls" style="margin: 15px;">
+      <button id="showAllBuildingsButton">Show All UBC Buildings</button>
+      <button id="clearBuildingsButton">Clear</button>
+
+      <span style="display:inline-block; width: 30px"></span>
+      <input type="text" id="highlightBuildingsTextEntry" style="width: 185px" placeholder="Building Name (eg. Buchanan)" />
+      <button id="highlightBuildingsButton">Highlight</button>
+    </div>
+
+    <script>
+
+        // Make a Leaflet map with L.map().
+        // Store the map in the variable 'map'.
+        // "mapid" is the 'id' of the DOM element to contain the map.
+        var map = L.map('mapid',
+                        {
+          								center: [49.265637, -123.256113],
+          								zoom: 15
+        								}  // this object holds map options
+                  );
+
+      var topoTiles = L.tileLayer(
+          								'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+                          {
+      										maxZoom: 17,
+      										attribution: 'Basemap data: &copy; <a href="http://www.opensbuildingtmap.org/copyright">OpenSbuildingtMap</a>, <a href="http://viewfinderpanoramas.org">SRTM</a> | Basemap style: &copy; <a href="https://opentopomap.org">OpenTopoMap</a> (<a href="https://creativecommons.org/licenses/by-sa/3.0/">CC-BY-SA</a>)'
+      									}
+      								).addTo(map);
+
+
+
+        var buildingMarkerOptions = {
+        	fillColor: "#4400ff",
+        	color: "#000",
+        	weight: 1,
+        	opacity: 0.2,
+        	fillOpacity: 0.2
+      };
+
+        var buildingMarkerHighlightedOptions = {
+        	fillColor: "#ff0004",
+        	color: "#000",
+        	weight: 1,
+        	opacity: 0.3,
+        	fillOpacity: 0.5
+      };
+
+        function onEachBuilding(feature, layer) {
+           // does this building even have a property named TAXA?
+           if (feature.properties && feature.properties.NAME) {
+              layer.bindTooltip(feature.properties.NAME);
+           }
+        };
+
+
+
+function areaStyle(feature) {
+   if (buildingToHighlight === "")
+    buildingMarkerOptionsToUse = buildingMarkerOptions;
+   else
+    buildingMarkerOptionsToUse = buildingMarkerHighlightedOptions;
+
+  return buildingMarkerOptionsToUse
+
+};
+
+
+        function BuildingsToFilter (feature, layer) {
+          if(buildingToHighlight === "") {
+            return true;
+          }
+          else if (feature.properties && feature.properties.NAME) {
+
+            return feature.properties.NAME.toLowerCase().includes(buildingToHighlight.toLowerCase());
+      		// We ignore uppercase/lowercase differences.
+          } else {
+            return false;
+            // This is for features that lack properties.
+            // Don't display them.
+          }
+        }
+
+      	var lastLayerAdded = {};
+
+        function addBuildings() {
+          if(map.hasLayer(lastLayerAdded)){  // reset the map layers if relevant.
+            map.removeLayer(lastLayerAdded);
+          }
+          lastLayerAdded = L.geoJSON(buildingGeoJSONdata, {
+       												style: areaStyle,
+                     				  onEachFeature: onEachBuilding,
+              								filter: BuildingsToFilter
+
+          									 }
+                           );
+          lastLayerAdded.addTo(map);
+        };
+
+        var buildingToHighlight = "";
+
+
+        function highlightBuildings() {
+          buildingToHighlight = document
+            .getElementById("highlightBuildingsTextEntry")
+            .value;  // get any text from the input box.
+          addBuildings(); // add the Buildings.
+          buildingToHighlight = "";  // reset so that "Show All Buildings" works.
+        }
+
+        function clearBuildings() {
+            map.removeLayer(lastLayerAdded);
+          };
+
+
+      var buildingGeoJSONdata; // Where we store building GeoJSON data
+
+      $.getJSON("https://raw.githubusercontent.com/UBCGeodata/ubcv-buildings/master/geojson/ubcv_building_records.geojson",
+                  function(data){
+          					// Store data for later:
+      	      		buildingGeoJSONdata = data;
+          					// Create event listener for ShowAllBuildings Button:
+      						document
+                      .getElementById("showAllBuildingsButton")
+                      .addEventListener("click", addBuildings);
+          					// Create event listener for the highlightBuildings Button:
+          					document
+                      .getElementById("highlightBuildingsButton")
+                      .addEventListener("click", highlightBuildings);
+                      document
+                        .getElementById("clearBuildingsButton")
+                        .addEventListener("click", clearBuildings);
+        					}
+        );
+    </script>
+  </body>
+</html>
